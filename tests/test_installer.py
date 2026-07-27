@@ -86,6 +86,7 @@ class InstallerIntegrationTests(unittest.TestCase):
             (self.aircraft_root / ".levelup-fans-cdu-patch/state.json").read_text(encoding="utf-8")
         )
         self.assertEqual(sha256(REPOSITORY_ROOT / "package-manifest.json"), state["manifestSha256"])
+        self.assertEqual("0.1.1", state["packageVersion"])
 
         tablet = (self.aircraft_root / TARGETS[0]).read_text(encoding="utf-8")
         self.assertIn("BEGIN LEVELUP_FANS_CDU_SELECTOR", tablet)

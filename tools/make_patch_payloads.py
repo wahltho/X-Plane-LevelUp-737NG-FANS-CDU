@@ -31,6 +31,74 @@ ASSET_PATHS = (
 )
 
 
+def make_tablet_patch() -> dict[str, Any]:
+    return {
+        "format": "exact-text-replacements-v1",
+        "replacements": [
+            {
+                "name": "LevelUp FANS CDU tablet selector",
+                "oldLines": [
+                    "\t\tif B738DR_b737_variant < 0 then",
+                    "\t\t\tline[1] = \"  CDU                      /\"",
+                    "\t\t\tif B738DR_fmc_type == 0 then",
+                    "\t\t\t\tline_g[1] = \"                       MCDU          \"",
+                    "\t\t\t\tline_s[1] = \"                            FANS MCDU\"",
+                    "\t\t\telse",
+                    "\t\t\t\tline_g[1] = \"                            FANS MCDU\"",
+                    "\t\t\t\tline_s[1] = \"                       MCDU          \"",
+                    "\t\t\tend",
+                    "\t\telse",
+                    "\t\t\tline[1] =   \"  CDU                      /\"",
+                    "\t\t\tline_g[1] = \"                       MCDU ---------\"",
+                    "\t\tend",
+                ],
+                "newLines": [
+                    "\t\t-- BEGIN LEVELUP_FANS_CDU_SELECTOR",
+                    "\t\tline[1] = \"  CDU                      /\"",
+                    "\t\tif B738DR_fmc_type == 0 then",
+                    "\t\t\tline_g[1] = \"                       MCDU          \"",
+                    "\t\t\tline_s[1] = \"                            FANS MCDU\"",
+                    "\t\telse",
+                    "\t\t\tline_g[1] = \"                            FANS MCDU\"",
+                    "\t\t\tline_s[1] = \"                       MCDU          \"",
+                    "\t\tend",
+                    "\t\t-- END LEVELUP_FANS_CDU_SELECTOR",
+                ],
+            },
+            {
+                "name": "LevelUp FANS CDU type and CPDLC switch",
+                "oldLines": [
+                    "\tif cmd == 1 and B738DR_b737_variant < 0 then",
+                    "\t\tif B738DR_fmc_type == 0 then",
+                    "\t\t\tB738DR_fmc_type = 1",
+                    "\t\telse",
+                    "\t\t\tB738DR_fmc_type = 0",
+                    "\t\t\tif B738DR_cmu ~= 0 and B738DR_cpdlc == 2 then",
+                    "\t\t\t\tB738DR_cpdlc = 1",
+                    "\t\t\tend",
+                    "\t\tend",
+                ],
+                "newLines": [
+                    "\t-- BEGIN LEVELUP_FANS_CDU_TYPE_SWITCH",
+                    "\tif cmd == 1 then",
+                    "\t\tif B738DR_fmc_type == 0 then",
+                    "\t\t\tB738DR_fmc_type = 1",
+                    "\t\t\tif B738DR_cmu ~= 0 then",
+                    "\t\t\t\tB738DR_cpdlc = 2",
+                    "\t\t\tend",
+                    "\t\telse",
+                    "\t\t\tB738DR_fmc_type = 0",
+                    "\t\t\tif B738DR_cmu ~= 0 then",
+                    "\t\t\t\tB738DR_cpdlc = 1",
+                    "\t\t\tend",
+                    "\t\tend",
+                    "\t-- END LEVELUP_FANS_CDU_TYPE_SWITCH",
+                ],
+            },
+        ],
+    }
+
+
 def write_json(path: Path, value: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -181,13 +249,14 @@ def make_png_patch(source: bytes, reference: bytes) -> tuple[dict[str, Any], byt
     return spec, result
 
 
-def update_manifest(repository_root: Path, results: dict[str, tuple[str, bytes]]) -> None:
+def update_manifest(repository_root: Path, results: dict[str, tuple[str, bytes, bytes]]) -> None:
     manifest_path = repository_root / "package-manifest.json"
     manifest = load_json(manifest_path)
     payloads = []
-    for relative, (payload_path, result) in results.items():
+    for relative, (payload_path, source, result) in results.items():
         target = next(item for item in manifest["targets"] if item["relativePath"] == relative)
         target["payload"] = payload_path
+        target["sourceSha256"] = [sha256_bytes(source)]
         if target["operation"] in ("obj8-fans-label-switch-v1", "sparse-bytes-v1"):
             target["resultSha256"] = sha256_bytes(result)
         else:
@@ -221,8 +290,8 @@ def main() -> int:
     obj_payload = output / "737_cockpit_ovhd2.obj.json"
     write_json(obj_payload, obj_spec)
 
-    results: dict[str, tuple[str, bytes]] = {
-        ASSET_PATHS[0]: (obj_payload.relative_to(repository_root).as_posix(), obj_result)
+    results: dict[str, tuple[str, bytes, bytes]] = {
+        ASSET_PATHS[0]: (obj_payload.relative_to(repository_root).as_posix(), obj_source, obj_result)
     }
     for relative in ASSET_PATHS[1:3]:
         source = (args.upstream_root / relative).read_bytes()
@@ -230,7 +299,7 @@ def main() -> int:
         spec = make_sparse_patch(source, reference)
         payload = output / (Path(relative).name + ".sparse.json")
         write_json(payload, spec)
-        results[relative] = (payload.relative_to(repository_root).as_posix(), reference)
+        results[relative] = (payload.relative_to(repository_root).as_posix(), source, reference)
 
     png_relative = ASSET_PATHS[3]
     png_source = (args.upstream_root / png_relative).read_bytes()
@@ -238,18 +307,24 @@ def main() -> int:
     png_spec, png_result = make_png_patch(png_source, png_reference)
     png_payload = output / (Path(png_relative).name + ".region.json")
     write_json(png_payload, png_spec)
-    results[png_relative] = (png_payload.relative_to(repository_root).as_posix(), png_result)
+    results[png_relative] = (png_payload.relative_to(repository_root).as_posix(), png_source, png_result)
 
     tablet_relative = "plugins/xlua/scripts/B738.tablet/B738.tablet.lua"
     tablet_payload = output / "B738.tablet.lua.json"
     from patchlib import apply_exact_text_replacements  # noqa: PLC0415
 
     tablet_source = (args.upstream_root / tablet_relative).read_bytes()
-    tablet_result = apply_exact_text_replacements(tablet_source, load_json(tablet_payload))
-    results[tablet_relative] = (tablet_payload.relative_to(repository_root).as_posix(), tablet_result)
+    tablet_spec = make_tablet_patch()
+    write_json(tablet_payload, tablet_spec)
+    tablet_result = apply_exact_text_replacements(tablet_source, tablet_spec)
+    results[tablet_relative] = (
+        tablet_payload.relative_to(repository_root).as_posix(),
+        tablet_source,
+        tablet_result,
+    )
 
     update_manifest(repository_root, results)
-    for relative, (payload, result) in results.items():
+    for relative, (payload, _, result) in results.items():
         print(f"{relative}: {payload} -> {sha256_bytes(result)}")
     return 0
 
