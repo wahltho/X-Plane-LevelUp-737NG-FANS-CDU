@@ -10,15 +10,16 @@ supported local LevelUp installation.
 
 ## Supported baseline
 
-- LevelUp 737NG Series V2.S1.50C for X-Plane 12
+- LevelUp 737NG Series V2.S1.50C aircraft assets for X-Plane 12
 - All aircraft variants in those packages: 737-600, -700, -800, -900 and
   -900ER
 
-Modified or unknown upstream files are rejected instead of overwritten.
-Compatibility is bound to the exact embedded Zibo/xLua files shipped in the
-published LevelUp package, not to the LevelUp folder or release name alone. A
-repacked `V2.S1.50C` containing a different `B738.tablet.lua` is rejected and
-requires a newly generated patch payload.
+The OBJ and texture deltas remain bound to the exact supported LevelUp assets.
+`B738.tablet.lua` is not bound to a whole-file hash: the installer requires the
+two exact, unmodified selector and type-switch blocks and preserves unrelated
+changes elsewhere in the file. This is verified with Zibo 4.05.33, 4.05.34 and
+4.05.35. Other revisions are accepted only when both target blocks still match.
+The installer neither modifies nor validates `B738.a_fms.lua` or `zibomod.xpl`.
 
 ## Behavior
 
@@ -65,7 +66,9 @@ uninstall is refused if any installed target was changed after installation.
 ## Package contract
 
 `package-manifest.json` uses schema version 2 and declares every target,
-supported source hash, operation and payload hash. The allowed operations are:
+operation and payload hash. Binary and OBJ targets also declare supported
+source hashes; the tablet target is validated by its exact replacement blocks.
+The allowed operations are:
 
 - exact UTF-8 text replacement with line-ending preservation;
 - a structural OBJ8 vertex/index/draw-command transform;
@@ -79,7 +82,7 @@ Maintenance Toolkit as a declarative, multi-file transaction.
 ## Development
 
 Patch payloads can be regenerated only from locally owned upstream and
-reference aircraft files. The `v0.1.1` baseline is tag `v2.S1.50C` at commit
+reference aircraft files. The asset baseline is tag `v2.S1.50C` at commit
 `5ab6c3ae3096428abc3503211e13f6b9076c7fa7` in the LevelUp Git repository:
 
 ```bash

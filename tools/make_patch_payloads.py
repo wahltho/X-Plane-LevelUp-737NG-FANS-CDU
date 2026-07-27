@@ -256,7 +256,10 @@ def update_manifest(repository_root: Path, results: dict[str, tuple[str, bytes, 
     for relative, (payload_path, source, result) in results.items():
         target = next(item for item in manifest["targets"] if item["relativePath"] == relative)
         target["payload"] = payload_path
-        target["sourceSha256"] = [sha256_bytes(source)]
+        if target["operation"] == "exact-text-replacements-v1":
+            target.pop("sourceSha256", None)
+        else:
+            target["sourceSha256"] = [sha256_bytes(source)]
         if target["operation"] in ("obj8-fans-label-switch-v1", "sparse-bytes-v1"):
             target["resultSha256"] = sha256_bytes(result)
         else:

@@ -70,8 +70,14 @@ def _preflight_sources(aircraft_root: Path, manifest: dict[str, Any]) -> None:
         path = _target_path(aircraft_root, target)
         if not path.is_file():
             raise PatchError(f"Required LevelUp file is missing: {target['relativePath']}")
+        supported = target.get("sourceSha256")
+        if supported is None:
+            if target["operation"] != "exact-text-replacements-v1":
+                raise PatchError(
+                    f"Missing source hash validation for: {target['relativePath']}"
+                )
+            continue
         actual = sha256_path(path)
-        supported = target["sourceSha256"]
         if actual not in supported:
             raise PatchError(
                 f"Unsupported or modified source file: {target['relativePath']}\n"

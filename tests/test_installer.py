@@ -10,7 +10,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from patchlib import decode_rgba_png
+from patchlib import PatchError, decode_rgba_png
+from z_Install import _preflight_sources
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -26,6 +27,27 @@ TARGETS = (
 
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+class SourcePreflightTests(unittest.TestCase):
+    def test_missing_source_hash_is_limited_to_exact_text_replacements(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="levelup-fans-cdu-preflight-") as temporary:
+            aircraft_root = Path(temporary)
+            relative = "objects/test.bin"
+            path = aircraft_root / relative
+            path.parent.mkdir(parents=True)
+            path.write_bytes(b"test")
+            manifest = {
+                "targets": [
+                    {
+                        "operation": "sparse-bytes-v1",
+                        "relativePath": relative,
+                    }
+                ]
+            }
+
+            with self.assertRaisesRegex(PatchError, "Missing source hash validation"):
+                _preflight_sources(aircraft_root, manifest)
 
 
 class InstallerIntegrationTests(unittest.TestCase):
@@ -86,7 +108,7 @@ class InstallerIntegrationTests(unittest.TestCase):
             (self.aircraft_root / ".levelup-fans-cdu-patch/state.json").read_text(encoding="utf-8")
         )
         self.assertEqual(sha256(REPOSITORY_ROOT / "package-manifest.json"), state["manifestSha256"])
-        self.assertEqual("0.1.1", state["packageVersion"])
+        self.assertEqual("0.1.2", state["packageVersion"])
 
         tablet = (self.aircraft_root / TARGETS[0]).read_text(encoding="utf-8")
         self.assertIn("BEGIN LEVELUP_FANS_CDU_SELECTOR", tablet)
@@ -121,12 +143,27 @@ class InstallerIntegrationTests(unittest.TestCase):
         )
         self.run_installer("check")
 
-    def test_modified_source_is_rejected_without_writes(self) -> None:
+    def test_compatible_tablet_variant_is_installed_and_restored(self) -> None:
         tablet = self.aircraft_root / TARGETS[0]
-        tablet.write_bytes(tablet.read_bytes() + b"-- third-party change\r\n")
+        tablet.write_bytes(tablet.read_bytes() + b"-- unrelated Zibo version change\n")
+        original_hash = sha256(tablet)
+
+        self.run_installer("check")
+        self.run_installer("install")
+        self.assertIn("unrelated Zibo version change", tablet.read_text(encoding="utf-8"))
+        self.run_installer("uninstall")
+        self.assertEqual(original_hash, sha256(tablet))
+
+    def test_modified_tablet_patch_block_is_rejected_without_writes(self) -> None:
+        tablet = self.aircraft_root / TARGETS[0]
+        source = tablet.read_bytes()
+        old = b'line_g[1] = "                       MCDU ---------"'
+        new = b'line_g[1] = "                       MCDU BLOCKED--"'
+        self.assertEqual(1, source.count(old))
+        tablet.write_bytes(source.replace(old, new))
         before = {relative: sha256(self.aircraft_root / relative) for relative in TARGETS}
         result = self.run_installer("check", expected=1)
-        self.assertIn("Unsupported or modified source file", result.stderr)
+        self.assertIn("LevelUp FANS CDU tablet selector", result.stderr)
         self.assertEqual(before, {relative: sha256(self.aircraft_root / relative) for relative in TARGETS})
 
 
