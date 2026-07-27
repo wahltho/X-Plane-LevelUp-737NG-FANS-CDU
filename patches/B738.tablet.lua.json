@@ -1,0 +1,65 @@
+{
+  "format": "exact-text-replacements-v1",
+  "replacements": [
+    {
+      "name": "LevelUp FANS CDU tablet selector",
+      "oldLines": [
+        "\t\tif B738DR_b737_variant < 0 then",
+        "\t\t\tline[1] = \"  CDU                      /\"",
+        "\t\t\tif B738DR_fmc_type == 0 then",
+        "\t\t\t\tline_g[1] = \"                       MCDU          \"",
+        "\t\t\t\tline_s[1] = \"                            FANS MCDU\"",
+        "\t\t\telse",
+        "\t\t\t\tline_g[1] = \"                            FANS MCDU\"",
+        "\t\t\t\tline_s[1] = \"                       MCDU          \"",
+        "\t\t\tend",
+        "\t\telse",
+        "\t\t\tline[1] =   \"  CDU                      /\"",
+        "\t\t\tline_g[1] = \"                       MCDU ---------\"",
+        "\t\tend"
+      ],
+      "newLines": [
+        "\t\t-- BEGIN LEVELUP_FANS_CDU_SELECTOR",
+        "\t\tline[1] = \"  CDU                      /\"",
+        "\t\tif B738DR_fmc_type == 0 then",
+        "\t\t\tline_g[1] = \"                       MCDU          \"",
+        "\t\t\tline_s[1] = \"                            FANS MCDU\"",
+        "\t\telse",
+        "\t\t\tline_g[1] = \"                            FANS MCDU\"",
+        "\t\t\tline_s[1] = \"                       MCDU          \"",
+        "\t\tend",
+        "\t\t-- END LEVELUP_FANS_CDU_SELECTOR"
+      ]
+    },
+    {
+      "name": "LevelUp FANS CDU type and CPDLC switch",
+      "oldLines": [
+        "\tif cmd == 1 and B738DR_b737_variant < 0 then",
+        "\t\tif B738DR_fmc_type == 0 then",
+        "\t\t\tB738DR_fmc_type = 1",
+        "\t\telse",
+        "\t\t\tB738DR_fmc_type = 0",
+        "\t\t\tif B738DR_cmu ~= 0 and B738DR_cpdlc == 2 then",
+        "\t\t\t\tB738DR_cpdlc = 1",
+        "\t\t\tend",
+        "\t\tend"
+      ],
+      "newLines": [
+        "\t-- BEGIN LEVELUP_FANS_CDU_TYPE_SWITCH",
+        "\tif cmd == 1 then",
+        "\t\tif B738DR_fmc_type == 0 then",
+        "\t\t\tB738DR_fmc_type = 1",
+        "\t\t\tif B738DR_cmu ~= 0 then",
+        "\t\t\t\tB738DR_cpdlc = 2",
+        "\t\t\tend",
+        "\t\telse",
+        "\t\t\tB738DR_fmc_type = 0",
+        "\t\t\tif B738DR_cmu ~= 0 then",
+        "\t\t\t\tB738DR_cpdlc = 1",
+        "\t\t\tend",
+        "\t\tend",
+        "\t-- END LEVELUP_FANS_CDU_TYPE_SWITCH"
+      ]
+    }
+  ]
+}

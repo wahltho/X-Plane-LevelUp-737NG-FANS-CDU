@@ -1,0 +1,96 @@
+{
+  "aircraftFamily": "LevelUp 737NG Series v2 for X-Plane 12",
+  "packageId": "wahltho.levelup-737ng.fans-cdu-3d",
+  "packageVersion": "0.1.0",
+  "payloads": [
+    {
+      "path": "patches/B738.tablet.lua.json",
+      "sha256": "5a0d3707349d266c3c574a525a424fb9123186427b201069e24abd8cba8da24f",
+      "size": 2312
+    },
+    {
+      "path": "patches/737_cockpit_ovhd2.obj.json",
+      "sha256": "5138c47a94fe4933df5ac3868e00df8254b5e6b7e37ca4a5d0d34e00a0fb155d",
+      "size": 11544
+    },
+    {
+      "path": "patches/737cockpit_overhead2.dds.sparse.json",
+      "sha256": "5935180681f77039a08dfbe3b2879c360e55f7cce6e087ada2b227bea976a8b8",
+      "size": 32756
+    },
+    {
+      "path": "patches/737cockpit_overhead2_LIT.dds.sparse.json",
+      "sha256": "306691fba971a74d09348329414fba9233e43fd8e1369abddfdce972b7ce2598",
+      "size": 9364
+    },
+    {
+      "path": "patches/737cockpit_overhead2_NML.png.region.json",
+      "sha256": "d92e14fa136e114e2c8d523bc1030ad3c66681c74a27d65e5505b141e227ac47",
+      "size": 26048
+    }
+  ],
+  "repositoryUrl": "https://github.com/wahltho/X-Plane-LevelUp-737NG-FANS-CDU",
+  "restartRequired": true,
+  "schemaVersion": 2,
+  "scope": {
+    "included": [
+      "persistent tablet selection between MCDU and FANS MCDU",
+      "immediate Captain and First Officer command remapping through existing LevelUp handlers",
+      "automatic CPDLC mode selection while the CMU is enabled",
+      "switchable Captain and First Officer 3D CDU labels, including day, lit and normal textures"
+    ],
+    "notIncluded": [
+      "a custom CDU pop-out window",
+      "changes to the LevelUp FMS or CPDLC backend",
+      "complete LevelUp, Zibo or X-Plane aircraft files"
+    ]
+  },
+  "supportedUpstreamReleases": [
+    "737NG Series V2.S1.50A"
+  ],
+  "targets": [
+    {
+      "operation": "exact-text-replacements-v1",
+      "payload": "patches/B738.tablet.lua.json",
+      "relativePath": "plugins/xlua/scripts/B738.tablet/B738.tablet.lua",
+      "sourceSha256": [
+        "0cad13f73440f5045d8916c94600a5333d22bef6d71495ffab6872eb0feae730"
+      ]
+    },
+    {
+      "operation": "obj8-fans-label-switch-v1",
+      "payload": "patches/737_cockpit_ovhd2.obj.json",
+      "relativePath": "objects/737_cockpit_ovhd2.obj",
+      "resultSha256": "6718a8472d367a51599e770005572846256cd8f337c7b60a4872537a2b655760",
+      "sourceSha256": [
+        "6c57049286f4b83e8dcf144a8f03becea197aad0be96be66e2df99efab97dce3"
+      ]
+    },
+    {
+      "operation": "sparse-bytes-v1",
+      "payload": "patches/737cockpit_overhead2.dds.sparse.json",
+      "relativePath": "objects/737cockpit_overhead2.dds",
+      "resultSha256": "f9dafcf2c0c72f84cd76ffef829449d1150d341130aa9ae715c51c17115551de",
+      "sourceSha256": [
+        "878e1b0976d9ba6d7aed746db25147c91232a7460b36dd9d730892c40de65979"
+      ]
+    },
+    {
+      "operation": "sparse-bytes-v1",
+      "payload": "patches/737cockpit_overhead2_LIT.dds.sparse.json",
+      "relativePath": "objects/737cockpit_overhead2_LIT.dds",
+      "resultSha256": "3d3a87c7a5b9a9b0e4da66c27fa70cbaf0ccd61238b4568f24bb87b1215d98ae",
+      "sourceSha256": [
+        "c4b9af91199649e50a2a5a9241021f1894f3dfa5a767ba8f6550e80a37b3e3ff"
+      ]
+    },
+    {
+      "operation": "png-rgba-region-v1",
+      "payload": "patches/737cockpit_overhead2_NML.png.region.json",
+      "relativePath": "objects/737cockpit_overhead2_NML.png",
+      "sourceSha256": [
+        "00617d182c630439dcdb634afaa40bf60fc7873dfcacaa6aaeaf37b42ff49aad"
+      ]
+    }
+  ]
+}
