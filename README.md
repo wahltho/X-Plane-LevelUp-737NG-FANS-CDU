@@ -10,7 +10,7 @@ supported local LevelUp installation.
 
 ## Supported baseline
 
-- LevelUp 737NG Series V2.S1.50C aircraft assets for X-Plane 12
+- LevelUp 737NG Series V2.S1.50 aircraft assets for X-Plane 12
 - All aircraft variants in those packages: 737-600, -700, -800, -900 and
   -900ER
 
@@ -45,8 +45,8 @@ covers the LevelUp 3D cockpit and the upstream Lua tablet selector.
 Close X-Plane, download or clone this repository, then run:
 
 ```bash
-python3 z_Install.py check --aircraft-root "/path/to/737NG Series_v2.S1.50C"
-python3 z_Install.py install --aircraft-root "/path/to/737NG Series_v2.S1.50C"
+python3 z_Install.py check --aircraft-root "/path/to/737NG Series_v2.S1.50"
+python3 z_Install.py install --aircraft-root "/path/to/737NG Series_v2.S1.50"
 ```
 
 On Windows, use `py` or `python` if `python3` is not available. Restart X-Plane
@@ -55,8 +55,8 @@ after installation.
 ## Verify and uninstall
 
 ```bash
-python3 z_Install.py verify --aircraft-root "/path/to/737NG Series_v2.S1.50C"
-python3 z_Install.py uninstall --aircraft-root "/path/to/737NG Series_v2.S1.50C"
+python3 z_Install.py verify --aircraft-root "/path/to/737NG Series_v2.S1.50"
+python3 z_Install.py uninstall --aircraft-root "/path/to/737NG Series_v2.S1.50"
 ```
 
 Installation creates a complete backup under
@@ -82,12 +82,13 @@ Maintenance Toolkit as a declarative, multi-file transaction.
 ## Development
 
 Patch payloads can be regenerated only from locally owned upstream and
-reference aircraft files. The asset baseline is tag `v2.S1.50C` at commit
-`5ab6c3ae3096428abc3503211e13f6b9076c7fa7` in the LevelUp Git repository:
+reference aircraft files. The asset baseline is the public `v2.S1.50` release,
+whose full-package manifest identifies LevelUp source commit
+`6e9e40761bbd176cc5d27ffe8dc9a12ff6acc4fd`:
 
 ```bash
 python3 tools/make_patch_payloads.py \
-  --upstream-root "/path/to/clean/737NG Series_v2.S1.50C" \
+  --upstream-root "/path/to/clean/737NG Series_v2.S1.50" \
   --reference-root "/path/to/reference/FANS aircraft overlay"
 ```
 
@@ -98,7 +99,7 @@ Run the integration test with local paths supplied through environment
 variables:
 
 ```bash
-LEVELUP_UPSTREAM_ROOT="/path/to/clean/737NG Series_v2.S1.50C" \
+LEVELUP_UPSTREAM_ROOT="/path/to/clean/737NG Series_v2.S1.50" \
 LEVELUP_FANS_REFERENCE_ROOT="/path/to/reference/FANS aircraft overlay" \
 python3 -m unittest -v
 ```
