@@ -84,6 +84,29 @@ def apply_exact_text_replacements(data: bytes, spec: dict[str, Any]) -> bytes:
     return join_text_bytes(lines, eol, has_final_eol)
 
 
+def remove_exact_text_replacements(data: bytes, spec: dict[str, Any]) -> bytes:
+    if spec.get("format") != "exact-text-replacements-v1":
+        raise PatchError("Unsupported text patch format")
+    lines, eol, has_final_eol = split_text_bytes(data)
+    for replacement in reversed(spec.get("replacements", [])):
+        old = replacement["oldLines"]
+        new = replacement["newLines"]
+        old_matches = _find_sequence(lines, old)
+        new_matches = _find_sequence(lines, new)
+        name = replacement.get("name", "unnamed replacement")
+        if len(new_matches) == 1:
+            start = new_matches[0]
+            lines[start : start + len(new)] = old
+        elif not new_matches and len(old_matches) == 1:
+            continue
+        else:
+            raise PatchError(
+                f"{name}: expected exactly one installed block or one old block; "
+                f"found installed={len(new_matches)}, old={len(old_matches)}"
+            )
+    return join_text_bytes(lines, eol, has_final_eol)
+
+
 def _parse_obj8(data: bytes) -> tuple[list[str], list[str], list[int], list[str], str, bool]:
     lines, eol, has_final_eol = split_text_bytes(data)
     try:
@@ -300,8 +323,6 @@ def encode_rgba_png(
 def apply_png_rgba_region(data: bytes, spec: dict[str, Any]) -> bytes:
     if spec.get("format") != "png-rgba-region-v1":
         raise PatchError("Unsupported PNG patch format")
-    if sha256_bytes(data) != spec["sourceSha256"]:
-        raise PatchError("PNG patch source does not match")
     width, height, pixels, filters, chunks = decode_rgba_png(data)
     if [width, height] != spec["dimensions"]:
         raise PatchError("PNG dimensions do not match")

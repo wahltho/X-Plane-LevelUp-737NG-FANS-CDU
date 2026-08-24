@@ -108,7 +108,7 @@ class InstallerIntegrationTests(unittest.TestCase):
             (self.aircraft_root / ".levelup-fans-cdu-patch/state.json").read_text(encoding="utf-8")
         )
         self.assertEqual(sha256(REPOSITORY_ROOT / "package-manifest.json"), state["manifestSha256"])
-        self.assertEqual("0.1.3", state["packageVersion"])
+        self.assertEqual("0.1.4", state["packageVersion"])
 
         tablet = (self.aircraft_root / TARGETS[0]).read_text(encoding="utf-8")
         self.assertIn("BEGIN LEVELUP_FANS_CDU_SELECTOR", tablet)
@@ -131,21 +131,30 @@ class InstallerIntegrationTests(unittest.TestCase):
         self.assertEqual(hashlib.sha256(reference_pixels).digest(), hashlib.sha256(installed_pixels).digest())
 
         installed_tablet = (self.aircraft_root / TARGETS[0]).read_bytes()
-        (self.aircraft_root / TARGETS[0]).write_bytes(installed_tablet + b"-- changed after install\r\n")
-        result = self.run_installer("uninstall", expected=1)
-        self.assertIn("Installed file was changed after installation", result.stderr)
-        (self.aircraft_root / TARGETS[0]).write_bytes(installed_tablet)
+        separator = b"" if installed_tablet.endswith((b"\r", b"\n")) else b"\r\n"
+        unrelated = separator + b"-- changed after install\r\n"
+        (self.aircraft_root / TARGETS[0]).write_bytes(installed_tablet + unrelated)
 
         self.run_installer("uninstall")
+        self.assertTrue((self.aircraft_root / TARGETS[0]).read_bytes().endswith(unrelated))
         self.assertEqual(
-            self.original_hashes,
-            {relative: sha256(self.aircraft_root / relative) for relative in TARGETS},
+            self.original_hashes[TARGETS[0]],
+            hashlib.sha256(
+                (self.aircraft_root / TARGETS[0]).read_bytes().replace(unrelated, b"")
+            ).hexdigest(),
+        )
+        self.assertEqual(
+            {relative: self.original_hashes[relative] for relative in TARGETS[1:]},
+            {relative: sha256(self.aircraft_root / relative) for relative in TARGETS[1:]},
         )
         self.run_installer("check")
 
     def test_compatible_tablet_variant_is_installed_and_restored(self) -> None:
         tablet = self.aircraft_root / TARGETS[0]
-        tablet.write_bytes(tablet.read_bytes() + b"-- unrelated Zibo version change\n")
+        original = tablet.read_bytes()
+        eol = b"\r\n" if original.count(b"\r\n") > 0 else b"\n"
+        separator = b"" if original.endswith((b"\r", b"\n")) else eol
+        tablet.write_bytes(original + separator + b"-- unrelated Zibo version change" + eol)
         original_hash = sha256(tablet)
 
         self.run_installer("check")

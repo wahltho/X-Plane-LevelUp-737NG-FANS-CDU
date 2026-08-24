@@ -260,7 +260,7 @@ def update_manifest(repository_root: Path, results: dict[str, tuple[str, bytes, 
             target.pop("sourceSha256", None)
         else:
             target["sourceSha256"] = [sha256_bytes(source)]
-        if target["operation"] in ("obj8-fans-label-switch-v1", "sparse-bytes-v1"):
+        if target["operation"] == "sparse-bytes-v1":
             target["resultSha256"] = sha256_bytes(result)
         else:
             target.pop("resultSha256", None)

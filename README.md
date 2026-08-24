@@ -8,18 +8,24 @@ The repository does not contain complete LevelUp, Zibo or X-Plane aircraft
 files. The installer applies small, integrity-checked deltas to files from a
 supported local LevelUp installation.
 
+Release `v0.1.4` accepts structurally compatible shared Tablet and cockpit
+assets, verifies the affected content instead of unrelated whole-file bytes,
+and removes only FANS-owned Tablet blocks during uninstall.
+
 ## Supported baseline
 
 - LevelUp 737NG Series V2.S1.50 aircraft assets for X-Plane 12
 - All aircraft variants in those packages: 737-600, -700, -800, -900 and
   -900ER
 
-The OBJ and texture deltas remain bound to the exact supported LevelUp assets.
+The OBJ transform validates the exact affected geometry/index contract, DDS
+deltas remain bound to exact supported assets, and the PNG normal map is
+validated by decoded RGBA pixels rather than compression bytes.
 `B738.tablet.lua` is not bound to a whole-file hash: the installer requires the
 two exact, unmodified selector and type-switch blocks and preserves unrelated
-changes elsewhere in the file. This is verified with Zibo 4.05.33, 4.05.34 and
-4.05.35. Other revisions are accepted only when both target blocks still match.
-The installer neither modifies nor validates `B738.a_fms.lua` or `zibomod.xpl`.
+changes elsewhere in the file. Other revisions are accepted only when these
+owned contracts still match. The installer neither modifies nor validates
+`B738.a_fms.lua` or `zibomod.xpl`.
 
 ## Behavior
 
@@ -59,15 +65,18 @@ python3 z_Install.py verify --aircraft-root "/path/to/737NG Series_v2.S1.50"
 python3 z_Install.py uninstall --aircraft-root "/path/to/737NG Series_v2.S1.50"
 ```
 
-Installation creates a complete backup under
-`.levelup-fans-cdu-patch/backups/` inside the selected aircraft root. An
-uninstall is refused if any installed target was changed after installation.
+Installation creates an exact audit backup under
+`.levelup-fans-cdu-patch/backups/` inside the selected aircraft root. Uninstall
+removes only the FANS-owned Tablet blocks, preserving unrelated Lua changes.
+Dedicated OBJ and texture assets are restored only after their installed state
+has passed integrity verification.
 
 ## Package contract
 
 `package-manifest.json` uses schema version 2 and declares every target,
-operation and payload hash. Binary and OBJ targets also declare supported
-source hashes; the tablet target is validated by its exact replacement blocks.
+operation and payload hash. Binary targets declare supported source hashes;
+the Tablet and OBJ targets are structurally validated, and the PNG target uses
+decoded source/result pixel hashes.
 The allowed operations are:
 
 - exact UTF-8 text replacement with line-ending preservation;
@@ -102,6 +111,12 @@ variables:
 LEVELUP_UPSTREAM_ROOT="/path/to/clean/737NG Series_v2.S1.50" \
 LEVELUP_FANS_REFERENCE_ROOT="/path/to/reference/FANS aircraft overlay" \
 python3 -m unittest -v
+```
+
+Build the deterministic release archive and checksum with:
+
+```bash
+python3 tools/build_release.py
 ```
 
 ## Disclaimer

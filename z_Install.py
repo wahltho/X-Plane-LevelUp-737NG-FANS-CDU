@@ -14,7 +14,15 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from patchlib import PatchError, apply_operation, load_json, sha256_bytes, sha256_path
+from patchlib import (
+    PatchError,
+    apply_operation,
+    decode_rgba_png,
+    load_json,
+    remove_exact_text_replacements,
+    sha256_bytes,
+    sha256_path,
+)
 
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
@@ -78,7 +86,10 @@ def _preflight_sources(aircraft_root: Path, manifest: dict[str, Any]) -> None:
                 )
             continue
         actual = sha256_path(path)
-        if actual not in supported:
+        if actual not in supported and target["operation"] not in (
+            "obj8-fans-label-switch-v1",
+            "png-rgba-region-v1",
+        ):
             raise PatchError(
                 f"Unsupported or modified source file: {target['relativePath']}\n"
                 f"  actual: {actual}\n"
@@ -115,13 +126,31 @@ def _verify_state(aircraft_root: Path, state: dict[str, Any], manifest: dict[str
         path = aircraft_root / _safe_relative_path(item["relativePath"])
         if not path.is_file():
             raise PatchError(f"Installed file is missing: {item['relativePath']}")
-        actual = sha256_path(path)
-        if actual != item["installedSha256"]:
+        target = next(
+            target for target in manifest["targets"]
+            if target["relativePath"] == item["relativePath"]
+        )
+        operation = target["operation"]
+        payload = load_json(PACKAGE_ROOT / _safe_relative_path(target["payload"]))
+        if operation == "exact-text-replacements-v1":
+            current = path.read_bytes()
+            if apply_operation(current, operation, payload) == current:
+                continue
+        elif operation == "png-rgba-region-v1":
+            _, _, pixels, _, _ = decode_rgba_png(path.read_bytes())
+            if sha256_bytes(pixels) == payload["resultPixelSha256"]:
+                continue
+        elif sha256_path(path) == item["installedSha256"]:
+            continue
+        if operation != "exact-text-replacements-v1":
             raise PatchError(
                 f"Installed file was changed after installation: {item['relativePath']}\n"
-                f"  actual: {actual}\n"
+                f"  actual: {sha256_path(path)}\n"
                 f"  expected: {item['installedSha256']}"
             )
+        raise PatchError(
+            f"Installed FANS CDU blocks are missing or modified in: {item['relativePath']}"
+        )
 
 
 def command_check(aircraft_root: Path, manifest: dict[str, Any]) -> int:
@@ -228,6 +257,12 @@ def command_uninstall(aircraft_root: Path, manifest: dict[str, Any]) -> int:
     _verify_state(aircraft_root, state, manifest)
     backup_root = aircraft_root / _safe_relative_path(state["backupRelativePath"])
     for item in state["files"]:
+        target = next(
+            target for target in manifest["targets"]
+            if target["relativePath"] == item["relativePath"]
+        )
+        if target["operation"] == "exact-text-replacements-v1":
+            continue
         backup = backup_root / _safe_relative_path(item["relativePath"])
         if not backup.is_file() or sha256_path(backup) != item["originalSha256"]:
             raise PatchError(f"Backup integrity check failed: {item['relativePath']}")
@@ -239,12 +274,23 @@ def command_uninstall(aircraft_root: Path, manifest: dict[str, Any]) -> int:
         rollback: dict[str, Path] = {}
         for item in state["files"]:
             relative = item["relativePath"]
-            backup = backup_root / _safe_relative_path(relative)
             temporary = staging_root / _safe_relative_path(relative)
             temporary.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(backup, temporary)
-            staged[relative] = temporary
+            target = next(
+                target for target in manifest["targets"]
+                if target["relativePath"] == relative
+            )
             current = aircraft_root / _safe_relative_path(relative)
+            if target["operation"] == "exact-text-replacements-v1":
+                payload = load_json(PACKAGE_ROOT / _safe_relative_path(target["payload"]))
+                temporary.write_bytes(
+                    remove_exact_text_replacements(current.read_bytes(), payload)
+                )
+                os.chmod(temporary, stat.S_IMODE(current.stat().st_mode))
+            else:
+                backup = backup_root / _safe_relative_path(relative)
+                shutil.copy2(backup, temporary)
+            staged[relative] = temporary
             rollback_file = staging_root / "installed" / _safe_relative_path(relative)
             rollback_file.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(current, rollback_file)
@@ -262,11 +308,20 @@ def command_uninstall(aircraft_root: Path, manifest: dict[str, Any]) -> int:
             raise
 
     for item in state["files"]:
+        target = next(
+            target for target in manifest["targets"]
+            if target["relativePath"] == item["relativePath"]
+        )
+        if target["operation"] == "exact-text-replacements-v1":
+            continue
         restored = aircraft_root / _safe_relative_path(item["relativePath"])
         if sha256_path(restored) != item["originalSha256"]:
             raise PatchError(f"Restore verification failed: {item['relativePath']}")
     _state_path(aircraft_root).unlink()
-    print(f"Uninstalled {state['packageId']} {state['packageVersion']} and restored the backup.")
+    print(
+        f"Uninstalled {state['packageId']} {state['packageVersion']}; "
+        "removed owned Lua blocks and restored dedicated visual assets."
+    )
     print("Restart X-Plane before loading the aircraft.")
     return 0
 
