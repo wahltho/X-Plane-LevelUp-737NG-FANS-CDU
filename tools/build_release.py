@@ -33,9 +33,10 @@ def main() -> int:
     manifest = json.loads((ROOT / "package-manifest.json").read_text(encoding="utf-8"))
     version = manifest["packageVersion"]
     prefix = f"X-Plane-LevelUp-737NG-FANS-CDU-v{version}"
+    archive_name = f"LevelUp-737NG-FANS-CDU-v{version}.zip"
     destination = ROOT / "dist"
     destination.mkdir(exist_ok=True)
-    archive_path = destination / f"{prefix}.zip"
+    archive_path = destination / archive_name
 
     with zipfile.ZipFile(
         archive_path,
