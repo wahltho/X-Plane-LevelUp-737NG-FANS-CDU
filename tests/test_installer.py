@@ -4,13 +4,14 @@ import hashlib
 import json
 import os
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from patchlib import PatchError, decode_rgba_png
+from patchlib import PatchError, apply_obj8_fans_labels, decode_rgba_png
 from z_Install import _preflight_sources
 
 
@@ -48,6 +49,60 @@ class SourcePreflightTests(unittest.TestCase):
 
             with self.assertRaisesRegex(PatchError, "Missing source hash validation"):
                 _preflight_sources(aircraft_root, manifest)
+
+
+class Obj8PatchTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.source = (
+            "A\n"
+            "800\n"
+            "OBJ\n"
+            "POINT_COUNTS 1 0 3 3\n"
+            "VT 0 0 0 0 0 1 0 0\n"
+            "IDX 0\n"
+            "IDX 0\n"
+            "IDX 0\n"
+            "TRIS 0 3\n"
+        ).encode()
+        moved = struct.pack("<3I", 0, 0, 0)
+        self.spec = {
+            "format": "obj8-fans-label-switch-v1",
+            "source": {
+                "vertexCount": 1,
+                "indexCount": 3,
+                "pointCountsLine": "POINT_COUNTS 1 0 3 3",
+            },
+            "moveIndexRangesToEnd": {
+                "ranges": [[0, 3]],
+                "sha256": hashlib.sha256(moved).hexdigest(),
+            },
+            "replaceFinalDraw": {
+                "old": "TRIS 0 3",
+                "newLines": ["TRIS 0 6"],
+            },
+            "addedVertices": ["VT 1 0 0 0 0 1 1 0"],
+            "addedIndices": [1, 1, 1],
+            "result": {
+                "vertexCount": 2,
+                "indexCount": 6,
+                "pointCountsLine": "POINT_COUNTS 2 0 6 6",
+            },
+        }
+
+    def test_installed_result_is_idempotent(self) -> None:
+        installed = apply_obj8_fans_labels(self.source, self.spec)
+
+        self.assertEqual(installed, apply_obj8_fans_labels(installed, self.spec))
+
+    def test_modified_installed_geometry_is_rejected(self) -> None:
+        installed = apply_obj8_fans_labels(self.source, self.spec)
+        modified = installed.replace(
+            b"VT 1 0 0 0 0 1 1 0",
+            b"VT 1 0 0 0 0 1 0 1",
+        )
+
+        with self.assertRaisesRegex(PatchError, "incomplete or modified"):
+            apply_obj8_fans_labels(modified, self.spec)
 
 
 class InstallerIntegrationTests(unittest.TestCase):
@@ -108,7 +163,7 @@ class InstallerIntegrationTests(unittest.TestCase):
             (self.aircraft_root / ".levelup-fans-cdu-patch/state.json").read_text(encoding="utf-8")
         )
         self.assertEqual(sha256(REPOSITORY_ROOT / "package-manifest.json"), state["manifestSha256"])
-        self.assertEqual("0.1.4", state["packageVersion"])
+        self.assertEqual("0.1.5", state["packageVersion"])
 
         tablet = (self.aircraft_root / TARGETS[0]).read_text(encoding="utf-8")
         self.assertIn("BEGIN LEVELUP_FANS_CDU_SELECTOR", tablet)

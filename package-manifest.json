@@ -1,7 +1,7 @@
 {
   "aircraftFamily": "LevelUp 737NG Series v2 for X-Plane 12",
   "packageId": "wahltho.levelup-737ng.fans-cdu-3d",
-  "packageVersion": "0.1.4",
+  "packageVersion": "0.1.5",
   "payloads": [
     {
       "path": "patches/B738.tablet.lua.json",

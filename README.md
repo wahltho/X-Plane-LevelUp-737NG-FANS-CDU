@@ -8,7 +8,7 @@ The repository does not contain complete LevelUp, Zibo or X-Plane aircraft
 files. The installer applies small, integrity-checked deltas to files from a
 supported local LevelUp installation.
 
-Release `v0.1.4` accepts structurally compatible shared Tablet and cockpit
+Release `v0.1.5` accepts structurally compatible shared Tablet and cockpit
 assets, verifies the affected content instead of unrelated whole-file bytes,
 and removes only FANS-owned Tablet blocks during uninstall.
 

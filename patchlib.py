@@ -148,19 +148,58 @@ def apply_obj8_fans_labels(data: bytes, spec: dict[str, Any]) -> bytes:
         raise PatchError("Unsupported OBJ8 patch format")
     prefix, vertices, indices, commands, eol, has_final_eol = _parse_obj8(data)
     source = spec["source"]
-    if len(vertices) != source["vertexCount"] or len(indices) != source["indexCount"]:
-        raise PatchError(
-            f"Unexpected OBJ8 counts: vertices={len(vertices)}, indices={len(indices)}"
-        )
+    source_vertex_count = source["vertexCount"]
+    source_index_count = source["indexCount"]
+    added_vertices = spec["addedVertices"]
+    added_indices = spec["addedIndices"]
+    result = spec["result"]
+    if (
+        result["vertexCount"] != source_vertex_count + len(added_vertices)
+        or result["indexCount"] != source_index_count + len(added_indices)
+    ):
+        raise PatchError("OBJ8 result counts do not match patch declaration")
 
     move = spec["moveIndexRangesToEnd"]
     positions: list[int] = []
     for offset, count in move["ranges"]:
-        if offset < 0 or count <= 0 or offset + count > len(indices):
+        if offset < 0 or count <= 0 or offset + count > source_index_count:
             raise PatchError("OBJ8 classic CDU label index range is invalid")
         positions.extend(range(offset, offset + count))
     if positions != sorted(set(positions)):
         raise PatchError("OBJ8 classic CDU label index ranges overlap or are unordered")
+
+    point_count_matches = [i for i, line in enumerate(prefix) if line.startswith("POINT_COUNTS ")]
+    if len(point_count_matches) != 1:
+        raise PatchError("Unexpected OBJ8 POINT_COUNTS declaration")
+
+    new_draw_lines = spec["replaceFinalDraw"]["newLines"]
+    has_source_shape = len(vertices) == source_vertex_count and len(indices) == source_index_count
+    has_result_shape = (
+        len(vertices) == result["vertexCount"] and len(indices) == result["indexCount"]
+    )
+    if has_result_shape:
+        moved_start = source_index_count - len(positions)
+        installed_moved = indices[moved_start:source_index_count]
+        installed_moved_hash = sha256_bytes(
+            struct.pack(f"<{len(installed_moved)}I", *installed_moved)
+        )
+        if (
+            prefix[point_count_matches[0]] != result["pointCountsLine"]
+            or vertices[source_vertex_count:] != added_vertices
+            or indices[source_index_count:] != added_indices
+            or not new_draw_lines
+            or commands[-len(new_draw_lines):] != new_draw_lines
+        ):
+            raise PatchError("OBJ8 installed FANS label geometry is incomplete or modified")
+        if moved_start < 0 or installed_moved_hash != move["sha256"]:
+            raise PatchError("OBJ8 installed classic CDU label indices do not match")
+        return data
+
+    if not has_source_shape:
+        raise PatchError(
+            f"Unexpected OBJ8 counts: vertices={len(vertices)}, indices={len(indices)}"
+        )
+
     position_set = set(positions)
     moved = [value for index, value in enumerate(indices) if index in position_set]
     moved_hash = sha256_bytes(struct.pack(f"<{len(moved)}I", *moved))
@@ -171,18 +210,14 @@ def apply_obj8_fans_labels(data: bytes, spec: dict[str, Any]) -> bytes:
     if not commands or commands[-1] != expected_draw:
         raise PatchError(f"Expected final OBJ8 draw command {expected_draw!r}")
 
-    result_vertices = vertices + spec["addedVertices"]
+    result_vertices = vertices + added_vertices
     kept = [value for index, value in enumerate(indices) if index not in position_set]
-    result_indices = kept + moved + spec["addedIndices"]
-    result = spec["result"]
-    if len(result_vertices) != result["vertexCount"] or len(result_indices) != result["indexCount"]:
-        raise PatchError("OBJ8 result counts do not match patch declaration")
+    result_indices = kept + moved + added_indices
 
-    point_count_matches = [i for i, line in enumerate(prefix) if line.startswith("POINT_COUNTS ")]
-    if len(point_count_matches) != 1 or prefix[point_count_matches[0]] != source["pointCountsLine"]:
+    if prefix[point_count_matches[0]] != source["pointCountsLine"]:
         raise PatchError("Unexpected OBJ8 POINT_COUNTS declaration")
     prefix[point_count_matches[0]] = result["pointCountsLine"]
-    result_commands = commands[:-1] + spec["replaceFinalDraw"]["newLines"]
+    result_commands = commands[:-1] + new_draw_lines
     result_lines = prefix + result_vertices + _serialize_obj8_indices(result_indices) + result_commands
     return join_text_bytes(result_lines, eol, has_final_eol)
 
