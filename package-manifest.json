@@ -1,12 +1,12 @@
 {
   "aircraftFamily": "LevelUp 737NG Series v2 for X-Plane 12",
   "packageId": "wahltho.levelup-737ng.fans-cdu-3d",
-  "packageVersion": "0.1.5",
+  "packageVersion": "0.1.6",
   "payloads": [
     {
       "path": "patches/B738.tablet.lua.json",
-      "sha256": "fb1261f1dc5d99c14ff6b0528c914d277a7efda85289e09635c2213e7e2f9c4a",
-      "size": 2312
+      "sha256": "06dd54021e101cdd0d8780aaa7458f83be40fb8cf48a51b02015b06febdf58cf",
+      "size": 3819
     },
     {
       "path": "patches/737_cockpit_ovhd2.obj.json",
@@ -36,13 +36,14 @@
     "included": [
       "persistent tablet selection between MCDU and FANS MCDU",
       "immediate Captain and First Officer command remapping through existing LevelUp handlers",
-      "automatic CPDLC mode selection while the CMU is enabled",
+      "free CPDLC selection (NONE / ATN B1 / FANS) independent of the CDU type while the CMU is enabled",
       "switchable Captain and First Officer 3D CDU labels, including day, lit and normal textures"
     ],
     "notIncluded": [
       "a custom CDU pop-out window",
       "changes to the LevelUp FMS or CPDLC backend",
-      "complete LevelUp, Zibo or X-Plane aircraft files"
+      "complete LevelUp, Zibo or X-Plane aircraft files",
+      "automatic CPDLC mode selection; the CDU type never rewrites the CPDLC choice"
     ]
   },
   "supportedUpstreamReleases": [

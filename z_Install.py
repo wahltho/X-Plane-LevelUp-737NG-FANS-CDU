@@ -18,6 +18,7 @@ from patchlib import (
     PatchError,
     apply_operation,
     decode_rgba_png,
+    exact_text_replacement_states,
     load_json,
     remove_exact_text_replacements,
     sha256_bytes,
@@ -134,7 +135,8 @@ def _verify_state(aircraft_root: Path, state: dict[str, Any], manifest: dict[str
         payload = load_json(PACKAGE_ROOT / _safe_relative_path(target["payload"]))
         if operation == "exact-text-replacements-v1":
             current = path.read_bytes()
-            if apply_operation(current, operation, payload) == current:
+            states = exact_text_replacement_states(current, payload)
+            if all(state in ("installed", "legacy") for state in states):
                 continue
         elif operation == "png-rgba-region-v1":
             _, _, pixels, _, _ = decode_rgba_png(path.read_bytes())
@@ -167,12 +169,31 @@ def command_check(aircraft_root: Path, manifest: dict[str, Any]) -> int:
     return 0
 
 
+def _installed_release_is_current(aircraft_root: Path, state: dict[str, Any], manifest: dict[str, Any]) -> bool:
+    if state.get("packageVersion") != manifest["packageVersion"]:
+        return False
+    for target in manifest["targets"]:
+        if target["operation"] != "exact-text-replacements-v1":
+            continue
+        payload = load_json(PACKAGE_ROOT / _safe_relative_path(target["payload"]))
+        current = _target_path(aircraft_root, target).read_bytes()
+        if any(state != "installed" for state in exact_text_replacement_states(current, payload)):
+            return False
+    return True
+
+
 def command_install(aircraft_root: Path, manifest: dict[str, Any]) -> int:
     state = _load_state(aircraft_root)
     if state is not None:
         _verify_state(aircraft_root, state, manifest)
-        print(f"Already installed and verified: {state['packageId']} {state['packageVersion']}")
-        return 0
+        if _installed_release_is_current(aircraft_root, state, manifest):
+            print(f"Already installed and verified: {state['packageId']} {state['packageVersion']}")
+            return 0
+        print(
+            f"Upgrading {state['packageId']} {state['packageVersion']} "
+            f"to {manifest['packageVersion']}: removing the earlier release first."
+        )
+        command_uninstall(aircraft_root, manifest)
     _validate_payloads(manifest)
     _preflight_sources(aircraft_root, manifest)
     transformed = _transform_targets(aircraft_root, manifest)

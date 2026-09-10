@@ -61,6 +61,51 @@ def _find_sequence(lines: list[str], sequence: list[str]) -> list[int]:
     return [i for i in range(len(lines) - width + 1) if lines[i : i + width] == sequence]
 
 
+def _find_legacy_block(lines: list[str], replacement: dict[str, Any]) -> tuple[int, int] | None:
+    """Locate a block installed by an earlier release of this patch.
+
+    Returns (start, length) when exactly one legacy block is present, None when
+    no legacy block is present, and raises when the file is ambiguous.
+    """
+    found: list[tuple[int, int]] = []
+    for legacy in replacement.get("legacyNewLines", []):
+        for start in _find_sequence(lines, legacy):
+            found.append((start, len(legacy)))
+    if not found:
+        return None
+    if len(found) > 1:
+        name = replacement.get("name", "unnamed replacement")
+        raise PatchError(f"{name}: found {len(found)} blocks from earlier releases")
+    return found[0]
+
+
+def exact_text_replacement_states(data: bytes, spec: dict[str, Any]) -> list[str]:
+    """Classify every replacement as 'source', 'installed' or 'legacy'."""
+    if spec.get("format") != "exact-text-replacements-v1":
+        raise PatchError("Unsupported text patch format")
+    lines, _, _ = split_text_bytes(data)
+    states: list[str] = []
+    for replacement in spec.get("replacements", []):
+        name = replacement.get("name", "unnamed replacement")
+        old_matches = _find_sequence(lines, replacement["oldLines"])
+        new_matches = _find_sequence(lines, replacement["newLines"])
+        legacy = _find_legacy_block(lines, replacement)
+        present = (len(old_matches) == 1, len(new_matches) == 1, legacy is not None)
+        if present == (True, False, False):
+            states.append("source")
+        elif present == (False, True, False):
+            states.append("installed")
+        elif present == (False, False, True):
+            states.append("legacy")
+        else:
+            raise PatchError(
+                f"{name}: expected exactly one old, installed or earlier-release block; "
+                f"found old={len(old_matches)}, installed={len(new_matches)}, "
+                f"legacy={1 if legacy else 0}"
+            )
+    return states
+
+
 def apply_exact_text_replacements(data: bytes, spec: dict[str, Any]) -> bytes:
     if spec.get("format") != "exact-text-replacements-v1":
         raise PatchError("Unsupported text patch format")
@@ -70,16 +115,22 @@ def apply_exact_text_replacements(data: bytes, spec: dict[str, Any]) -> bytes:
         new = replacement["newLines"]
         old_matches = _find_sequence(lines, old)
         new_matches = _find_sequence(lines, new)
+        legacy = _find_legacy_block(lines, replacement)
         name = replacement.get("name", "unnamed replacement")
-        if len(old_matches) == 1 and not new_matches:
+        if len(old_matches) == 1 and not new_matches and legacy is None:
             start = old_matches[0]
             lines[start : start + len(old)] = new
-        elif not old_matches and len(new_matches) == 1:
+        elif not old_matches and len(new_matches) == 1 and legacy is None:
             continue
+        elif not old_matches and not new_matches and legacy is not None:
+            # Upgrade: replace the block of an earlier release in place.
+            start, length = legacy
+            lines[start : start + length] = new
         else:
             raise PatchError(
                 f"{name}: expected exactly one old block or one installed block; "
-                f"found old={len(old_matches)}, installed={len(new_matches)}"
+                f"found old={len(old_matches)}, installed={len(new_matches)}, "
+                f"legacy={1 if legacy else 0}"
             )
     return join_text_bytes(lines, eol, has_final_eol)
 
@@ -93,16 +144,22 @@ def remove_exact_text_replacements(data: bytes, spec: dict[str, Any]) -> bytes:
         new = replacement["newLines"]
         old_matches = _find_sequence(lines, old)
         new_matches = _find_sequence(lines, new)
+        legacy = _find_legacy_block(lines, replacement)
         name = replacement.get("name", "unnamed replacement")
-        if len(new_matches) == 1:
+        if len(new_matches) == 1 and legacy is None:
             start = new_matches[0]
             lines[start : start + len(new)] = old
+        elif not new_matches and legacy is not None:
+            # Block of an earlier release: restore the upstream lines as well.
+            start, length = legacy
+            lines[start : start + length] = old
         elif not new_matches and len(old_matches) == 1:
             continue
         else:
             raise PatchError(
                 f"{name}: expected exactly one installed block or one old block; "
-                f"found installed={len(new_matches)}, old={len(old_matches)}"
+                f"found installed={len(new_matches)}, old={len(old_matches)}, "
+                f"legacy={1 if legacy else 0}"
             )
     return join_text_bytes(lines, eol, has_final_eol)
 

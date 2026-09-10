@@ -11,7 +11,15 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from patchlib import PatchError, apply_obj8_fans_labels, decode_rgba_png
+from patchlib import (
+    PatchError,
+    apply_exact_text_replacements,
+    apply_obj8_fans_labels,
+    decode_rgba_png,
+    exact_text_replacement_states,
+    load_json,
+    remove_exact_text_replacements,
+)
 from z_Install import _preflight_sources
 
 
@@ -49,6 +57,55 @@ class SourcePreflightTests(unittest.TestCase):
 
             with self.assertRaisesRegex(PatchError, "Missing source hash validation"):
                 _preflight_sources(aircraft_root, manifest)
+
+
+TABLET_PAYLOAD = REPOSITORY_ROOT / "patches/B738.tablet.lua.json"
+
+
+def _tablet_spec() -> dict:
+    return load_json(TABLET_PAYLOAD)
+
+
+def _legacy_type_switch_block(spec: dict) -> tuple[list[str], list[str]]:
+    replacement = next(item for item in spec["replacements"] if item["name"] == "LevelUp FANS CDU type switch")
+    return replacement["newLines"], replacement["legacyNewLines"][0]
+
+
+class TextReplacementUpgradeTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.spec = _tablet_spec()
+        lines = ["-- head"]
+        for replacement in self.spec["replacements"]:
+            lines.extend(replacement["oldLines"])
+            lines.append("-- between")
+        self.source = ("\n".join(lines) + "\n").encode()
+
+    def test_install_and_remove_round_trip(self) -> None:
+        installed = apply_exact_text_replacements(self.source, self.spec)
+        self.assertEqual(["installed"] * 3, exact_text_replacement_states(installed, self.spec))
+        self.assertNotIn(b"B738DR_cpdlc = 2\n\t\t\tend\n\t\telse", installed)
+        self.assertIn(b"BEGIN LEVELUP_FANS_CDU_CPDLC_SELECTION", installed)
+        self.assertEqual(installed, apply_exact_text_replacements(installed, self.spec))
+        self.assertEqual(self.source, remove_exact_text_replacements(installed, self.spec))
+
+    def test_earlier_release_block_is_upgraded_and_removable(self) -> None:
+        new_block, legacy_block = _legacy_type_switch_block(self.spec)
+        installed = apply_exact_text_replacements(self.source, self.spec)
+        legacy = installed.replace("\n".join(new_block).encode(), "\n".join(legacy_block).encode())
+        self.assertNotEqual(installed, legacy)
+        self.assertEqual(
+            ["installed", "legacy", "installed"],
+            exact_text_replacement_states(legacy, self.spec),
+        )
+        self.assertEqual(installed, apply_exact_text_replacements(legacy, self.spec))
+        self.assertEqual(self.source, remove_exact_text_replacements(legacy, self.spec))
+
+    def test_upstream_tablet_blocks_match(self) -> None:
+        upstream = os.environ.get("LEVELUP_UPSTREAM_ROOT")
+        if not upstream:
+            self.skipTest("Set LEVELUP_UPSTREAM_ROOT")
+        data = (Path(upstream) / TARGETS[0]).read_bytes()
+        self.assertEqual(["source"] * 3, exact_text_replacement_states(data, self.spec))
 
 
 class Obj8PatchTests(unittest.TestCase):
@@ -163,13 +220,15 @@ class InstallerIntegrationTests(unittest.TestCase):
             (self.aircraft_root / ".levelup-fans-cdu-patch/state.json").read_text(encoding="utf-8")
         )
         self.assertEqual(sha256(REPOSITORY_ROOT / "package-manifest.json"), state["manifestSha256"])
-        self.assertEqual("0.1.5", state["packageVersion"])
+        self.assertEqual("0.1.6", state["packageVersion"])
 
         tablet = (self.aircraft_root / TARGETS[0]).read_text(encoding="utf-8")
         self.assertIn("BEGIN LEVELUP_FANS_CDU_SELECTOR", tablet)
         self.assertIn("BEGIN LEVELUP_FANS_CDU_TYPE_SWITCH", tablet)
-        self.assertIn("B738DR_cpdlc = 2", tablet)
-        self.assertIn("B738DR_cpdlc = 1", tablet)
+        self.assertIn("BEGIN LEVELUP_FANS_CDU_CPDLC_SELECTION", tablet)
+        type_switch = tablet.split("BEGIN LEVELUP_FANS_CDU_TYPE_SWITCH")[1].split("END LEVELUP_FANS_CDU_TYPE_SWITCH")[0]
+        self.assertNotIn("B738DR_cpdlc", type_switch)
+        self.assertNotIn("B738DR_fmc_type ~= 0", tablet.split("BEGIN LEVELUP_FANS_CDU_CPDLC_SELECTION")[1].split("END LEVELUP_FANS_CDU_CPDLC_SELECTION")[0])
 
         obj = (self.aircraft_root / TARGETS[1]).read_text(encoding="utf-8")
         self.assertIn("ANIM_show 0.000000 0.500000 laminar/B738/fmc_type", obj)
@@ -217,6 +276,29 @@ class InstallerIntegrationTests(unittest.TestCase):
         self.assertIn("unrelated Zibo version change", tablet.read_text(encoding="utf-8"))
         self.run_installer("uninstall")
         self.assertEqual(original_hash, sha256(tablet))
+
+    def test_earlier_release_is_upgraded_in_place(self) -> None:
+        self.run_installer("install")
+        tablet = self.aircraft_root / TARGETS[0]
+        new_block, legacy_block = _legacy_type_switch_block(_tablet_spec())
+        installed = tablet.read_bytes()
+        eol = b"\r\n" if installed.count(b"\r\n") > 0 else b"\n"
+        legacy = installed.replace(eol.join(line.encode() for line in new_block), eol.join(line.encode() for line in legacy_block))
+        self.assertNotEqual(installed, legacy)
+        tablet.write_bytes(legacy)
+        state_path = self.aircraft_root / ".levelup-fans-cdu-patch/state.json"
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        state["packageVersion"] = "0.1.5"
+        state_path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+
+        result = self.run_installer("install")
+        self.assertIn("Upgrading", result.stdout)
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        self.assertEqual("0.1.6", state["packageVersion"])
+        self.assertEqual(installed, tablet.read_bytes())
+        self.run_installer("verify")
+        self.run_installer("uninstall")
+        self.assertEqual(self.original_hashes[TARGETS[0]], sha256(tablet))
 
     def test_modified_tablet_patch_block_is_rejected_without_writes(self) -> None:
         tablet = self.aircraft_root / TARGETS[0]

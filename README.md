@@ -12,6 +12,12 @@ Release `v0.1.5` accepts structurally compatible shared Tablet and cockpit
 assets, verifies the affected content instead of unrelated whole-file bytes,
 and removes only FANS-owned Tablet blocks during uninstall.
 
+Release `v0.1.6` stops coupling the CPDLC protocol to the CDU type: the
+tablet `CPDLC` option now cycles `NONE / ATN B1 / FANS` with either CDU, and
+switching the CDU type never rewrites that choice. Installing `v0.1.6` over an
+installed `v0.1.5` upgrades in place; the earlier owned blocks are recognised
+and replaced.
+
 ## Supported baseline
 
 - LevelUp 737NG Series V2.S1.50 aircraft assets for X-Plane 12
@@ -34,14 +40,21 @@ Captain/First Officer handlers, FANS pages and CPDLC backend. This patch:
 
 - exposes `MCDU / FANS MCDU` on the tablet FMS options page;
 - switches `laminar/B738/fmc_type` immediately;
-- selects CPDLC `FANS` with the FANS CDU and `ATN B1` with the standard CDU
-  while the CMU is enabled;
+- leaves the CPDLC protocol (`NONE / ATN B1 / FANS`) to the user: the tablet
+  `CPDLC` option cycles through all three with either CDU type while the CMU
+  is enabled, and the CDU type switch never changes it;
 - switches the visible 3D labels for `ATC`, `VNAV` and `FMC COMM` on both
   CDUs;
 - preserves LevelUp's existing command names and click manipulators.
 
 Changing CDU type during an active datalink session is not guarded. End or
 stabilize the session before changing the type.
+
+With the standard CDU and `FANS` selected, the ATC pages are reached through
+`MENU`, `DLK`, `ATC` because that CDU has no `ATC` key. The LevelUp FMS
+script does not draw an `ATC` prompt on the `DLNK-APPLICATION MENU` in that
+combination; the left LSK 2 still opens the ATC index. Adding the prompt is
+outside this patch, which does not modify `B738.a_fms.lua`.
 
 This package does **not** add or modify a custom CDU pop-out window. It only
 covers the LevelUp 3D cockpit and the upstream Lua tablet selector.
@@ -57,6 +70,10 @@ python3 z_Install.py install --aircraft-root "/path/to/737NG Series_v2.S1.50"
 
 On Windows, use `py` or `python` if `python3` is not available. Restart X-Plane
 after installation.
+
+Running `install` with an earlier release of this patch already installed
+upgrades it: the earlier release is removed first, then the current one is
+installed. No manual uninstall is needed.
 
 ## Verify and uninstall
 
