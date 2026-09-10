@@ -71,6 +71,14 @@ def _legacy_type_switch_block(spec: dict) -> tuple[list[str], list[str]]:
     return replacement["newLines"], replacement["legacyNewLines"][0]
 
 
+def _v015_tablet_spec() -> dict:
+    spec = json.loads(json.dumps(_tablet_spec()))
+    spec["replacements"] = spec["replacements"][:2]
+    type_switch = spec["replacements"][1]
+    type_switch["newLines"] = type_switch.pop("legacyNewLines")[0]
+    return spec
+
+
 class TextReplacementUpgradeTests(unittest.TestCase):
     def setUp(self) -> None:
         self.spec = _tablet_spec()
@@ -206,6 +214,20 @@ class InstallerIntegrationTests(unittest.TestCase):
         self.assertEqual(expected, result.returncode, msg=result.stdout + result.stderr)
         return result
 
+    def simulate_v015_installation(self) -> Path:
+        self.run_installer("install")
+        tablet = self.aircraft_root / TARGETS[0]
+        source = remove_exact_text_replacements(tablet.read_bytes(), _tablet_spec())
+        tablet.write_bytes(apply_exact_text_replacements(source, _v015_tablet_spec()))
+
+        state_path = self.aircraft_root / ".levelup-fans-cdu-patch/state.json"
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        state["packageVersion"] = "0.1.5"
+        tablet_state = next(item for item in state["files"] if item["relativePath"] == TARGETS[0])
+        tablet_state["installedSha256"] = sha256(tablet)
+        state_path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+        return tablet
+
     def test_check_install_verify_and_uninstall(self) -> None:
         self.run_installer("check")
         self.assertEqual(
@@ -245,8 +267,9 @@ class InstallerIntegrationTests(unittest.TestCase):
         self.assertEqual(hashlib.sha256(reference_pixels).digest(), hashlib.sha256(installed_pixels).digest())
 
         installed_tablet = (self.aircraft_root / TARGETS[0]).read_bytes()
-        separator = b"" if installed_tablet.endswith((b"\r", b"\n")) else b"\r\n"
-        unrelated = separator + b"-- changed after install\r\n"
+        eol = b"\r\n" if installed_tablet.count(b"\r\n") > installed_tablet.count(b"\n") - installed_tablet.count(b"\r\n") else b"\n"
+        separator = b"" if installed_tablet.endswith((b"\r", b"\n")) else eol
+        unrelated = separator + b"-- changed after install" + eol
         (self.aircraft_root / TARGETS[0]).write_bytes(installed_tablet + unrelated)
 
         self.run_installer("uninstall")
@@ -278,27 +301,46 @@ class InstallerIntegrationTests(unittest.TestCase):
         self.assertEqual(original_hash, sha256(tablet))
 
     def test_earlier_release_is_upgraded_in_place(self) -> None:
-        self.run_installer("install")
-        tablet = self.aircraft_root / TARGETS[0]
-        new_block, legacy_block = _legacy_type_switch_block(_tablet_spec())
-        installed = tablet.read_bytes()
-        eol = b"\r\n" if installed.count(b"\r\n") > 0 else b"\n"
-        legacy = installed.replace(eol.join(line.encode() for line in new_block), eol.join(line.encode() for line in legacy_block))
-        self.assertNotEqual(installed, legacy)
-        tablet.write_bytes(legacy)
+        tablet = self.simulate_v015_installation()
+        v015 = tablet.read_bytes()
+        self.assertEqual(
+            ["installed", "legacy", "source"],
+            exact_text_replacement_states(v015, _tablet_spec()),
+        )
+
+        eol = b"\r\n" if v015.count(b"\r\n") > 0 else b"\n"
+        unrelated = b"-- unrelated Zibo plugin change" + eol
+        tablet.write_bytes(v015 + unrelated)
         state_path = self.aircraft_root / ".levelup-fans-cdu-patch/state.json"
-        state = json.loads(state_path.read_text(encoding="utf-8"))
-        state["packageVersion"] = "0.1.5"
-        state_path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
 
         result = self.run_installer("install")
         self.assertIn("Upgrading", result.stdout)
         state = json.loads(state_path.read_text(encoding="utf-8"))
         self.assertEqual("0.1.6", state["packageVersion"])
-        self.assertEqual(installed, tablet.read_bytes())
+        self.assertEqual(["installed"] * 3, exact_text_replacement_states(tablet.read_bytes(), _tablet_spec()))
+        self.assertTrue(tablet.read_bytes().endswith(unrelated))
         self.run_installer("verify")
         self.run_installer("uninstall")
-        self.assertEqual(self.original_hashes[TARGETS[0]], sha256(tablet))
+        self.assertTrue(tablet.read_bytes().endswith(unrelated))
+        self.assertEqual(
+            self.original_hashes[TARGETS[0]],
+            hashlib.sha256(tablet.read_bytes().removesuffix(unrelated)).hexdigest(),
+        )
+
+    def test_earlier_release_with_missing_owned_block_is_rejected(self) -> None:
+        tablet = self.simulate_v015_installation()
+        installed = tablet.read_bytes()
+        selector = _v015_tablet_spec()["replacements"][0]["newLines"]
+        eol = b"\r\n" if installed.count(b"\r\n") > 0 else b"\n"
+        selector_bytes = eol.join(line.encode() for line in selector)
+        self.assertEqual(1, installed.count(selector_bytes))
+        tablet.write_bytes(installed.replace(selector_bytes, b"-- damaged owned selector"))
+        before = {relative: sha256(self.aircraft_root / relative) for relative in TARGETS}
+
+        result = self.run_installer("install", expected=1)
+
+        self.assertIn("LevelUp FANS CDU tablet selector", result.stderr)
+        self.assertEqual(before, {relative: sha256(self.aircraft_root / relative) for relative in TARGETS})
 
     def test_modified_tablet_patch_block_is_rejected_without_writes(self) -> None:
         tablet = self.aircraft_root / TARGETS[0]

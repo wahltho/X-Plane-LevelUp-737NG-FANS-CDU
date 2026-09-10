@@ -5,8 +5,8 @@
   "payloads": [
     {
       "path": "patches/B738.tablet.lua.json",
-      "sha256": "06dd54021e101cdd0d8780aaa7458f83be40fb8cf48a51b02015b06febdf58cf",
-      "size": 3819
+      "sha256": "bbb7aed3c6a67b60c755d710c201efea2df68b6ab309b478d9e0f66548d06fc1",
+      "size": 3864
     },
     {
       "path": "patches/737_cockpit_ovhd2.obj.json",

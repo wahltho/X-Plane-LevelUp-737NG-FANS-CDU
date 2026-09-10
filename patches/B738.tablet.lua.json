@@ -76,6 +76,7 @@
       ]
     },
     {
+      "introducedInPackageVersion": "0.1.6",
       "name": "LevelUp FANS CDU CPDLC selection",
       "newLines": [
         "\t-- BEGIN LEVELUP_FANS_CDU_CPDLC_SELECTION",

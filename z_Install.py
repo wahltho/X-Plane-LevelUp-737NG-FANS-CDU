@@ -136,7 +136,10 @@ def _verify_state(aircraft_root: Path, state: dict[str, Any], manifest: dict[str
         if operation == "exact-text-replacements-v1":
             current = path.read_bytes()
             states = exact_text_replacement_states(current, payload)
-            if all(state in ("installed", "legacy") for state in states):
+            installed_version = state.get("packageVersion")
+            if not isinstance(installed_version, str):
+                raise PatchError("Installed state has no valid package version")
+            if _exact_text_states_match_release(states, payload, installed_version):
                 continue
         elif operation == "png-rgba-region-v1":
             _, _, pixels, _, _ = decode_rgba_png(path.read_bytes())
@@ -153,6 +156,34 @@ def _verify_state(aircraft_root: Path, state: dict[str, Any], manifest: dict[str
         raise PatchError(
             f"Installed FANS CDU blocks are missing or modified in: {item['relativePath']}"
         )
+
+
+def _version_key(value: str) -> tuple[int, ...]:
+    parts = value.split(".")
+    if not parts or any(not part.isdigit() for part in parts):
+        raise PatchError(f"Unsupported package version in installed state: {value!r}")
+    return tuple(int(part) for part in parts)
+
+
+def _exact_text_states_match_release(
+    states: list[str], payload: dict[str, Any], installed_version: str
+) -> bool:
+    replacements = payload.get("replacements", [])
+    if len(states) != len(replacements):
+        return False
+    installed_key = _version_key(installed_version)
+    for replacement_state, replacement in zip(states, replacements):
+        if replacement_state in ("installed", "legacy"):
+            continue
+        introduced = replacement.get("introducedInPackageVersion")
+        if (
+            replacement_state == "source"
+            and isinstance(introduced, str)
+            and installed_key < _version_key(introduced)
+        ):
+            continue
+        return False
+    return True
 
 
 def command_check(aircraft_root: Path, manifest: dict[str, Any]) -> int:

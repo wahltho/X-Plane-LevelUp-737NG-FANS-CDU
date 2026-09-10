@@ -28,9 +28,11 @@ The OBJ transform validates the exact affected geometry/index contract, DDS
 deltas remain bound to exact supported assets, and the PNG normal map is
 validated by decoded RGBA pixels rather than compression bytes.
 `B738.tablet.lua` is not bound to a whole-file hash: the installer requires the
-two exact, unmodified selector and type-switch blocks and preserves unrelated
-changes elsewhere in the file. Other revisions are accepted only when these
-owned contracts still match. The installer neither modifies nor validates
+three exact, unmodified selector, type-switch and CPDLC-selection blocks and
+preserves unrelated changes elsewhere in the file. During an upgrade it only
+permits blocks that were introduced after the recorded installed release to be
+absent. Other revisions are accepted only when these owned contracts still
+match. The installer neither modifies nor validates
 `B738.a_fms.lua` or `zibomod.xpl`.
 
 ## Behavior
