@@ -18,9 +18,13 @@ switching the CDU type never rewrites that choice. Installing `v0.1.6` over an
 installed `v0.1.5` upgrades in place; the earlier owned blocks are recognised
 and replaced.
 
+Release `v0.1.7` adds the LevelUp `V2.S1.51C` cockpit OBJ baseline. It keeps
+the upstream lighting changes from that release while applying the same FANS
+label geometry and command-routing contract as on `V2.S1.50`.
+
 ## Supported baseline
 
-- LevelUp 737NG Series V2.S1.50 aircraft assets for X-Plane 12
+- LevelUp 737NG Series V2.S1.50 or V2.S1.51C aircraft assets for X-Plane 12
 - All aircraft variants in those packages: 737-600, -700, -800, -900 and
   -900ER
 
@@ -66,8 +70,8 @@ covers the LevelUp 3D cockpit and the upstream Lua tablet selector.
 Close X-Plane, download or clone this repository, then run:
 
 ```bash
-python3 z_Install.py check --aircraft-root "/path/to/737NG Series_v2.S1.50"
-python3 z_Install.py install --aircraft-root "/path/to/737NG Series_v2.S1.50"
+python3 z_Install.py check --aircraft-root "/path/to/737NG Series"
+python3 z_Install.py install --aircraft-root "/path/to/737NG Series"
 ```
 
 On Windows, use `py` or `python` if `python3` is not available. Restart X-Plane
@@ -80,8 +84,8 @@ installed. No manual uninstall is needed.
 ## Verify and uninstall
 
 ```bash
-python3 z_Install.py verify --aircraft-root "/path/to/737NG Series_v2.S1.50"
-python3 z_Install.py uninstall --aircraft-root "/path/to/737NG Series_v2.S1.50"
+python3 z_Install.py verify --aircraft-root "/path/to/737NG Series"
+python3 z_Install.py uninstall --aircraft-root "/path/to/737NG Series"
 ```
 
 Installation creates an exact audit backup under
@@ -110,13 +114,13 @@ Maintenance Toolkit as a declarative, multi-file transaction.
 ## Development
 
 Patch payloads can be regenerated only from locally owned upstream and
-reference aircraft files. The asset baseline is the public `v2.S1.50` release,
-whose full-package manifest identifies LevelUp source commit
-`6e9e40761bbd176cc5d27ffe8dc9a12ff6acc4fd`:
+reference aircraft files. The current asset baseline is the public
+`2.S1.51C` release at LevelUp source commit
+`478d6ce164045aa5e7059de755ed5cab6a97b445`:
 
 ```bash
 python3 tools/make_patch_payloads.py \
-  --upstream-root "/path/to/clean/737NG Series_v2.S1.50" \
+  --upstream-root "/path/to/clean/737NG Series_v2.S1.51C" \
   --reference-root "/path/to/reference/FANS aircraft overlay"
 ```
 
@@ -127,7 +131,7 @@ Run the integration test with local paths supplied through environment
 variables:
 
 ```bash
-LEVELUP_UPSTREAM_ROOT="/path/to/clean/737NG Series_v2.S1.50" \
+LEVELUP_UPSTREAM_ROOT="/path/to/clean/737NG Series_v2.S1.51C" \
 LEVELUP_FANS_REFERENCE_ROOT="/path/to/reference/FANS aircraft overlay" \
 python3 -m unittest -v
 ```

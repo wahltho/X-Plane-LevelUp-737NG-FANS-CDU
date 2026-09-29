@@ -1,7 +1,7 @@
 {
   "aircraftFamily": "LevelUp 737NG Series v2 for X-Plane 12",
   "packageId": "wahltho.levelup-737ng.fans-cdu-3d",
-  "packageVersion": "0.1.6",
+  "packageVersion": "0.1.7",
   "payloads": [
     {
       "path": "patches/B738.tablet.lua.json",
@@ -47,7 +47,8 @@
     ]
   },
   "supportedUpstreamReleases": [
-    "737NG Series V2.S1.50"
+    "737NG Series V2.S1.50",
+    "737NG Series V2.S1.51C"
   ],
   "targets": [
     {
@@ -61,7 +62,8 @@
       "relativePath": "objects/737_cockpit_ovhd2.obj",
       "sourceSha256": [
         "d702eb4898871cbb079045915ede7579d3cc6b64710c66b828dbf354c515e5f7",
-        "6c57049286f4b83e8dcf144a8f03becea197aad0be96be66e2df99efab97dce3"
+        "6c57049286f4b83e8dcf144a8f03becea197aad0be96be66e2df99efab97dce3",
+        "a0b8681870c099fe4b770e22ecd659434cbcb3af71479e3f9d459d8810012d3d"
       ]
     },
     {

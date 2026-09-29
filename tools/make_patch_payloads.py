@@ -110,6 +110,7 @@ def make_tablet_patch() -> dict[str, Any]:
                 ],
             },
             {
+                "introducedInPackageVersion": "0.1.6",
                 "name": "LevelUp FANS CDU CPDLC selection",
                 "oldLines": [
                     "\telseif cmd == 20 then",

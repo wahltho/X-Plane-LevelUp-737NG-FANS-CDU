@@ -242,7 +242,7 @@ class InstallerIntegrationTests(unittest.TestCase):
             (self.aircraft_root / ".levelup-fans-cdu-patch/state.json").read_text(encoding="utf-8")
         )
         self.assertEqual(sha256(REPOSITORY_ROOT / "package-manifest.json"), state["manifestSha256"])
-        self.assertEqual("0.1.6", state["packageVersion"])
+        self.assertEqual("0.1.7", state["packageVersion"])
 
         tablet = (self.aircraft_root / TARGETS[0]).read_text(encoding="utf-8")
         self.assertIn("BEGIN LEVELUP_FANS_CDU_SELECTOR", tablet)
@@ -316,7 +316,7 @@ class InstallerIntegrationTests(unittest.TestCase):
         result = self.run_installer("install")
         self.assertIn("Upgrading", result.stdout)
         state = json.loads(state_path.read_text(encoding="utf-8"))
-        self.assertEqual("0.1.6", state["packageVersion"])
+        self.assertEqual("0.1.7", state["packageVersion"])
         self.assertEqual(["installed"] * 3, exact_text_replacement_states(tablet.read_bytes(), _tablet_spec()))
         self.assertTrue(tablet.read_bytes().endswith(unrelated))
         self.run_installer("verify")
