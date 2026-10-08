@@ -25,6 +25,8 @@ PACKAGE_FILES = (
     "tests/test_installer.py",
     "tools/make_patch_payloads.py",
     "z_Install.py",
+    "standalone_guard.py",
+    "standalone-ownership.json",
 )
 ZIP_TIMESTAMP = (2026, 1, 1, 0, 0, 0)
 

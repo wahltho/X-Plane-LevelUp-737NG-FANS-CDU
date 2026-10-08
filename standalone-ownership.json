@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "policy": {
+    "packageId": "wahltho.levelup-737ng.fans-cdu-3d",
+    "displayName": "LevelUp FANS CDU",
+    "repositoryUrl": "https://github.com/wahltho/X-Plane-LevelUp-737NG-FANS-CDU",
+    "supportedProducts": [
+      "levelup-737ng"
+    ],
+    "moduleIds": [
+      "fans-cdu"
+    ],
+    "targetPaths": [
+      "objects/737_cockpit_ovhd2.obj",
+      "objects/737cockpit_overhead2.dds",
+      "objects/737cockpit_overhead2_LIT.dds",
+      "objects/737cockpit_overhead2_NML.png",
+      "plugins/xlua/scripts/B738.tablet/B738.tablet.lua"
+    ],
+    "standaloneEvidencePaths": [
+      ".levelup-fans-cdu-patch/state.json",
+      ".patch-ownership/wahltho.levelup-737ng.fans-cdu-3d/receipt.json",
+      ".patch-ownership/wahltho.levelup-737ng.fans-cdu-3d.lock",
+      ".patch-ownership/wahltho.levelup-737ng.fans-cdu-3d/transaction"
+    ],
+    "payloadPaths": [],
+    "markerNamespaces": [
+      {
+        "relativePath": "plugins/xlua/scripts/B738.tablet/B738.tablet.lua",
+        "namespace": "LEVELUP_FANS_CDU",
+        "blocks": [
+          {
+            "beginMarker": "-- BEGIN LEVELUP_FANS_CDU_CPDLC_SELECTION",
+            "endMarker": "-- END LEVELUP_FANS_CDU_CPDLC_SELECTION"
+          },
+          {
+            "beginMarker": "-- BEGIN LEVELUP_FANS_CDU_SELECTOR",
+            "endMarker": "-- END LEVELUP_FANS_CDU_SELECTOR"
+          },
+          {
+            "beginMarker": "-- BEGIN LEVELUP_FANS_CDU_TYPE_SWITCH",
+            "endMarker": "-- END LEVELUP_FANS_CDU_TYPE_SWITCH"
+          }
+        ],
+        "allowedCommentLines": []
+      }
+    ],
+    "signatures": [
+      {
+        "relativePath": "objects/737_cockpit_ovhd2.obj",
+        "text": "ANIM_begin\nANIM_show 0.000000 0.500000 laminar/B738/fmc_type\nANIM_hide 0.500000 1.000000 laminar/B738/fmc_type\nTRIS 53109 192"
+      }
+    ],
+    "resultFiles": [],
+    "originalFiles": [
+      {
+        "relativePath": "objects/737_cockpit_ovhd2.obj",
+        "sha256": [
+          "6c57049286f4b83e8dcf144a8f03becea197aad0be96be66e2df99efab97dce3",
+          "a0b8681870c099fe4b770e22ecd659434cbcb3af71479e3f9d459d8810012d3d",
+          "d702eb4898871cbb079045915ede7579d3cc6b64710c66b828dbf354c515e5f7"
+        ]
+      },
+      {
+        "relativePath": "objects/737cockpit_overhead2.dds",
+        "sha256": [
+          "878e1b0976d9ba6d7aed746db25147c91232a7460b36dd9d730892c40de65979"
+        ]
+      },
+      {
+        "relativePath": "objects/737cockpit_overhead2_LIT.dds",
+        "sha256": [
+          "c4b9af91199649e50a2a5a9241021f1894f3dfa5a767ba8f6550e80a37b3e3ff"
+        ]
+      },
+      {
+        "relativePath": "objects/737cockpit_overhead2_NML.png",
+        "sha256": [
+          "00617d182c630439dcdb634afaa40bf60fc7873dfcacaa6aaeaf37b42ff49aad"
+        ]
+      }
+    ],
+    "recoveryInstruction": "Before switching to MTK, use the restore or uninstall procedure documented by this patch, preserving other patches. Then rescan. Instructions: https://github.com/wahltho/X-Plane-LevelUp-737NG-FANS-CDU#readme."
+  },
+  "nativeState": {
+    "kind": "files",
+    "path": ".levelup-fans-cdu-patch/state.json"
+  }
+}
